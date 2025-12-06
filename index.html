@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lyric Sync - LCB Gang</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+        :root {
+            --color-bg: #111827;
+            --color-terminal: #000000;
+            --color-text: #00FF7F;
+            --color-accent: #1D4ED8;
+            --color-shadow: rgba(0, 255, 127, 0.5);
+            --color-past: #666;
+            --color-select-bg: #222;
+        }
+
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            min-height: 80vh;
+            background-color: var(--color-terminal);
+            border: 2px solid var(--color-text);
+            box-shadow: 0 0 20px var(--color-shadow);
+            padding: 20px;
+            border-radius: 12px;
+            animation: pulse 5s infinite alternate;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        @keyframes pulse {
+            0% { border-color: var(--color-text); box-shadow: 0 0 15px var(--color-shadow); }
+            100% { border-color: var(--color-accent); box-shadow: 0 0 25px var(--color-accent), 0 0 5px var(--color-shadow); }
+        }
+
+        h1 { color: var(--color-text); text-align: center; margin-bottom: 5px; text-shadow: 0 0 5px var(--color-text); font-size: 2.5rem; }
+        #metadata { color: #9ca3af; text-align: center; margin-bottom: 20px; font-size: 1rem; line-height: 1.5; }
+        .instructions {
+            color: #ccc; text-align: center; margin-bottom: 20px; font-size: 1.1rem;
+            border: 1px dashed #444; padding: 10px; border-radius: 4px;
+        }
+
+        /* --- Lyric Display (Using scrollIntoView) --- */
+        #lyric-display {
+            position: relative; 
+            overflow-y: auto;
+            flex-grow: 1;
+            min-height: 300px;
+            padding: 10px 15px; 
+            border: 1px solid var(--color-accent); 
+            border-radius: 8px;
+            background-color: #0d0d0d; 
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+            
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        #lyric-display::-webkit-scrollbar {
+            display: none;
+        }
+
+        #lyrics-wrapper { 
+            width: 100%; 
+            padding-top: 150px; 
+            padding-bottom: 150px; 
+            box-sizing: border-box;
+        }
+
+        .lyric-line {
+            font-family: 'Roboto Mono', monospace;
+            text-align: center;
+            display: block; 
+            padding: 10px 0;
+            margin: 0;
+            
+            opacity: 0.2; 
+            transform: scale(0.95);
+            font-size: 1.5rem;
+            color: #333;
+
+            transition: 
+                opacity 0.4s ease-out, 
+                transform 0.4s ease-out, 
+                color 0.4s ease-out, 
+                font-size 0.4s ease-out;
+            
+            scroll-snap-align: center; 
+        }
+        
+        .lyric-line.active {
+            opacity: 1; 
+            transform: scale(1.0); 
+            color: var(--color-text);
+            font-weight: 700; 
+            text-shadow: 0 0 8px var(--color-text);
+            font-size: 2.2rem;
+        }
+
+        .lyric-line.past {
+            opacity: 0.35; 
+            transform: scale(0.9); 
+            color: var(--color-past); 
+            font-size: 1.2rem;
+        }
+        
+        /* --- Initial Play Overlay --- */
+        #initial-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 8px;
+            text-align: center;
+            flex-direction: column;
+            transition: opacity 0.5s ease-out, visibility 0.5s;
+        }
+
+        #initial-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none; /* Allows clicks to pass through once hidden */
+        }
+        
+        #initial-overlay p {
+            font-size: 1.8rem;
+            color: var(--color-text);
+            text-shadow: 0 0 10px var(--color-text);
+            animation: blink 1.5s infinite alternate;
+            padding: 20px;
+            margin: 0;
+        }
+
+        #initial-overlay .sub-text {
+            font-size: 1.2rem;
+            color: #aaa;
+            margin-top: 10px;
+            animation: none;
+        }
+
+        @keyframes blink {
+            from { opacity: 1; }
+            to { opacity: 0.7; }
+        }
+
+        /* --- Controls & Selector (Same as before) --- */
+        .selector-group { margin-bottom: 15px; padding-top: 5px; border-top: 1px solid #333; }
+
+        #song-selector {
+            width: 100%; padding: 15px 10px; font-size: 1.2rem; border-radius: 8px;
+            background-color: var(--color-select-bg); color: var(--color-text);
+            border: 2px solid var(--color-accent); cursor: pointer; appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="%2300FF7F" d="M5 6l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat; background-position: right 10px center;
+        }
+
+        .control-groups { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .main-button-group { display: flex; gap: 10px; flex-grow: 1; min-width: 50%; }
+        .full-screen-group { flex-shrink: 0; display: flex; gap: 10px; }
+        
+        .control-groups button {
+            padding: 15px 20px; font-size: 1.2rem; font-weight: 700;
+            border: none; border-radius: 10px; cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #prev-btn, #next-btn { background-color: #3b82f6; color: white; border: 2px solid #1d4ed8; flex-grow: 1; }
+        #prev-btn:hover, #next-btn:hover { background-color: #2563eb; transform: translateY(-2px); }
+        #prev-btn:disabled, #next-btn:disabled { background-color: #444; color: #999; cursor: not-allowed; border-color: #222; }
+        
+        #fullscreen-btn { background-color: #4b5563; color: #ccc; border: 2px solid #374151; }
+        #fullscreen-btn:hover { background-color: #374151; transform: translateY(-2px); }
+        
+        #play-pause-btn { 
+            background-color: #f59e0b;
+            color: #111827; 
+            border: 2px solid #b45309; 
+        }
+        #play-pause-btn:hover { background-color: #d97706; transform: translateY(-2px); }
+        
+        #restart-btn { 
+            background-color: #ef4444; 
+            color: white; 
+            border: 2px solid #b91c1c; 
+        }
+        #restart-btn:hover { background-color: #dc2626; transform: translateY(-2px); }
+
+
+        /* --- Mobile Optimization --- */
+        @media (max-width: 600px) {
+            body { padding: 0; }
+            .container { 
+                border-radius: 0; 
+                padding: 15px;
+                min-height: 100vh;
+                border: none;
+                box-shadow: none;
+            } 
+            h1 { font-size: 1.8rem; }
+            #lyric-display { min-height: 250px; }
+            .lyric-line.active { font-size: 1.8rem; }
+            .lyric-line { font-size: 1.2rem; }
+            
+            .control-groups { flex-direction: column; gap: 10px; }
+            .main-button-group, .full-screen-group { flex-direction: row; gap: 10px; width: 100%; }
+            .control-groups button { 
+                padding: 12px; 
+                font-size: 1.1rem; 
+                flex-grow: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+
+<div class="container" id="main-container">
+    <div>
+        <h1 id="song-title"></h1>
+        <div id="metadata"></div>
+        
+        <div class="selector-group">
+            <select id="song-selector" onchange="loadSong(this.value)"></select>
+        </div>
+        
+        <p class="instructions">
+            ⬅ / Q = **Prev** · ➡️ / E / **SPACE** = **Next** · F = **Fullscreen** · P = **Play/Pause** · **R** = **Restart**
+        </p>
+    </div>
+
+    <div id="lyric-display">
+        <div id="initial-overlay">
+            <p>
+                PRESS **PLAY** (P) FIRST!
+            </p>
+            <p class="sub-text">
+                Your browser requires a click to start the music.
+            </p>
+        </div>
+        <div id="lyrics-wrapper">
+             </div>
+    </div>
+
+    <audio id="background-audio" preload="auto"></audio>
+
+    <div class="control-groups">
+        <div class="main-button-group">
+            <button id="prev-btn" onclick="prevLyric()">PREVIOUS (Q)</button>
+            <button id="next-btn" onclick="nextLyric()">NEXT (E/Space)</button>
+        </div>
+        <div class="full-screen-group">
+            <button id="play-pause-btn" onclick="togglePlayPause()">PLAY (P)</button>
+            <button id="restart-btn" onclick="restartSong()">RESTART (R)</button>
+            <button id="fullscreen-btn" onclick="toggleFullscreen()">FULLSCREEN (F)</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const SINNER_CANTO_MAP = {
+        "Gregor": "Canto I: The Outcast (Gregor)",
+        "Rodion": "Canto II: The Unloving (Rodion/Rodya)",
+        "Sinclair": "Canto III: The Unconfronting (Sinclair)",
+        "Yi Sang": "Canto IV: The Unchanging (Yi Sang)",
+        "Ishmael": "Canto V: The Evil Defining (Ishmael)",
+        "Heathcliff": "Canto VI: The Heartbreaking (Heathcliff)",
+        "Don Quixote": "Canto VII: The Dream Ending (Don Quixote)",
+        "Hong Lu": "Canto VIII: The Surrendered Witnessing (Hong Lu)" 
+    };
+
+    const songs = [
+        // Index 0
+        {
+            title: "Young Girl A",
+            artist: "Siinamota (feat. GUMI)",
+            language: "Japanese (Romaji)",
+            source: "Vocaloid",
+            audioSrc: "./audio/young_girl_a.mp3",
+            lyrics: [
+                { text: "Boku no inochi tsuttatte dare no inochi tsuttatte"},
+                { text: "Tokidoki doki kouhei ni sabakareru mon nan desho"},
+                { text: "Kurai sora ni yattekita utsu wo tsurete yattekita"},
+                { text: "Tokidoki ame soukei ni tayorigiri da dou shiyou"},
+                { text: "Kuchiru made no aizou wo kuchiru made no aizou wo"},
+                { text: "Nomikomu kimi kantan ni hohoemu kimi dou shite"},
+                { text: "Kotoba wo kaku aimai ni kotoba wo kaku aimai ni"},
+                { text: "Tsutawari kirannai kara kimi dake wo sa shinjite"},
+                { text: "Sutete kita yume wo atsumete"},
+                { text: "Chotto chotto machigaeta kara"},
+                { text: "Aa \"Toki ni toki ni tsumazuita tte\""},
+                { text: "Samui-samui-samui-samui-samui"},
+                { text: "Samui-samui-samui-samui-samui"},
+                { text: "Samui-samui-samui-samui ii yoranaide"},
+                { text: "Aa kimi no kimi no kimi no koe ga"},
+                { text: "Tooi-tooi-tooi-tooi-tooi"},
+                { text: "Tooi-tooi-tooi-tooi-tooi"},
+                { text: "Tooi-tooi-tooi-tooi kizutsuke naide"},
+                { text: "Nanbanme demo nanbanme demo"},
+                { text: "Boku ga boku de aru tame ni…"},
+                { text: "Chigiri atsume mottekita chigiri atsume motte kita"},
+                { text: "Ano hi no machigai wo nomikomu no ga kuru shikute"},
+                { text: "Kuchiru made no aizou wo kuchiru made no aizou wo"},
+                { text: "Nomikomu kimi kantan ni hohoemu kimi dou shite"},
+                { text: "\"Kodomo damashi no hana futatsu\""},
+                { text: "Kitto kitto akirameta kara?"},
+                { text: "Aa tooi yume wo oikakete sa"},
+                { text: "Hayai-hayai-hayai-hayai-hayai"},
+                { text: "Hayai-hayai-hayai-hayai-hayai"},
+                { text: "Hayai-hayai-hayai-hayai oitsukenai yo"},
+                { text: "Sutekirezu nokoshita omoi ga"},
+                { text: "Nikui-nikui-nikui-nikui-nikui"},
+                { text: "Nikui-nikui-nikui-nikui-nikui"},
+                { text: "Nikui-nikui-nikui-nikui yurusare nai no?"},
+                { text: "Aa yume wo yume wo miteta hazu ga"},
+                { text: "Kowai-kowai-kowai-kowai-kowai"},
+                { text: "Kowai-kowai-kowai-kowai-kowai"},
+                { text: "Kowai-kowai-kowai-kowai chikazuka nai de"},
+                { text: "Ai kotoba o kuri kaesu dake"},
+                { text: "Samui-samui-samui-samui-samui"},
+                { text: "Samui-samui-samui-samui-samui"},
+                { text: "Samui-samui-samui-samui onegai dakara"},
+                { text: "Nanbanme demo nanbanme demo"},
+                { text: "Boku ga boku de aru tame ni…"}
+            ]
+        },
+        // Index 1
+        {
+            title: "Mesmerizer",
+            artist: "Satsuki (feat. Hatsune Miku & Kasane Teto)",
+            language: "Japanese (Romaji)",
+            source: "Vocaloid",
+            audioSrc: "./audio/mesmerizer.mp3",
+            lyrics: [
+                { text: "Jissai no kanjou wa no think"},
+                { text: "Kizukanai furi"},
+                { text: "Zettai-teki na kyojitsu to shinchuu"},
+                { text: "Sou yatte hette iku anchi"},
+                { text: "Kizu no kiriuri"},
+                { text: "Moroku sakebu shuutai"},
+                { text: "Sonna anata ni o susume"},
+                { text: "Sai koukyuu no touhikou"},
+                { text: "Yagate kanbi na wana ni"},
+                { text: "Tsurareta mono kara sukuwareru"},
+                { text: "Mohaya shouki no sata de wa"},
+                { text: "Yatte ikenai kono shaba ja"},
+                { text: "Aete soshiranu kao de"},
+                { text: "Mi o makaseru no ga saiteki kai"},
+                { text: "Kotoba de kazatta hanataba mo"},
+                { text: "Kokoro o ubae ba honmono ka"},
+                { text: "Subete ga somatte iku you na"},
+                { text: "Jishou ni go shoutai"},
+                { text: "Saraba"},
+                { text: "Konna jidai ni atsuraeta"},
+                { text: "Mite kure no kijaku-sei-ei-e"},
+                { text: "Hontou no shibai de damasareru"},
+                { text: "Yatara to urusai shinzou no kodou"},
+                { text: "Zanki wa tou ni nai natte iru"},
+                { text: "Suriheru taikyuu-sei"},
+                { text: "Me no mae no jishou o kawashi tsutsu"},
+                { text: "Ikiru no de te ippai"},
+                { text: "Dare ka tasukete ne"},
+                { text: "Anata dandan nemuku naru"},
+                { text: "Asahaka na mezumaraizu"},
+                { text: "Atama karada kemuri ni maku"},
+                { text: "Masaka amata taburakasu"},
+                { text: "Me no mae de yuragu kouka"},
+                { text: "Ugokanakunaru kanata"},
+                { text: "Kore de ii nda"},
+                { text: "Jibun sae mo damashidamashi shut down"},
+                { text: "Anata dandan nemuku naru"},
+                { text: "Asahaka na mezumaraizu"},
+                { text: "Atama karada kemuri ni maku"},
+                { text: "Masaka amata taburakasu"},
+                { text: "Me no mae de yuragu kouka"},
+                { text: "Ugokanakunaru kanata"},
+                { text: "Donna ni kyou o ikinuite mo"},
+                { text: "Mukuwarenu everyday-ay-ay"},
+                { text: "Mou bot mitai na saikuru de"},
+                { text: "Dasei no shunkan o tsuzukete iru no da"},
+                { text: "Un mo kibou mo nai nara ba"},
+                { text: "Naosara shou ga nei"},
+                { text: "Nai mon wa nai de akiramete"},
+                { text: "Amari mono de shoubu suru no ga unmei"},
+                { text: "Konna jidai ni atsuraeta"},
+                { text: "Mite kure no kijaku-sei-ei-e"},
+                { text: "Hontou no shibai de damasareru"},
+                { text: "Yatara to wazurai shinzou no kodou"},
+                { text: "Sanbi wa mou imi nai na tte iru"},
+                { text: "Nise no karisuma-sei-ei-e"},
+                { text: "Genjitsu o chokushi shisugiru to"},
+                { text: "Shitsumei shichau n da"},
+                { text: "Da kara tekido ni ne"}
+            ]
+        },
+        // Index 2 (Starting Song: Hero - Don Quixote)
+        {
+            title: "Hero",
+            artist: "Mili",
+            language: "English",
+            source: "Limbus Company",
+            sinners: ["Don Quixote"],
+            audioSrc: "./audio/hero.mp3",
+            lyrics: [
+                { text: "One, two"},
+                { text: "One, two, three, four"},
+                { text: "We're swaying on horseback"},
+                { text: "The hills are green"},
+                { text: "And the birdies sing"},
+                { text: "And roses are pink"},
+                { text: "Experience I never had"},
+                { text: "I'm so happy"},
+                { text: "Happy to just be part of your story"},
+                { text: "After you I follow"},
+                { text: "After you I follow"},
+                { text: "The world you show me broaden my horizon"},
+                { text: "Forever my hero"},
+                { text: "Forever my hero"},
+                { text: "I am your biggest fan"},
+                { text: "I am your biggest fan"},
+                { text: "Merry-go-round"},
+                { text: "In a circle I run"},
+                { text: "It's so much fun leaving reality behind"},
+                { text: "One, two"},
+                { text: "One, two, three, four"},
+                { text: "I fall down the horseback"},
+                { text: "With my crippled legs"},
+                { text: "And then it starts to rain"},
+                { text: "Showing me it's all fake"},
+                { text: "Raindrops wash down the facade"},
+                { text: "Hills are painted"},
+                { text: "Birdies are robotic"},
+                { text: "Roses are made of clay"},
+                { text: "Excitement that I feel"},
+                { text: "Excitement that I feel"},
+                { text: "Return them to the shelf"},
+                { text: "'Cause now I understand"},
+                { text: "Heroes cannot be real"},
+                { text: "Heroes cannot be real"},
+                { text: "I wasn't who I am"},
+                { text: "I don't know who I am"},
+                { text: "¿Who am I?"},
+                { text: "¿Who am I?"},
+                { text: "¿Who am I?"},
+                { text: "Here we go, another lap"},
+                { text: "Prizes to claim"},
+                { text: "Here's a dream for you"},
+                { text: "Here's a dream for me"},
+                { text: "Golden tickets in my bag stay unexchanged"},
+                { text: "Don't you love the thrill of the chase?"},
+                { text: "Just let me be your fan"},
+                { text: "I wanna be your fan"},
+                { text: "I'm still your biggest fan"},
+                { text: "Why is it that some were given the role of villain"},
+                { text: "The moment they were released into this system?"},
+                { text: "One, two"},
+                { text: "One, two, three, four"},
+                { text: "Stand up"},
+                { text: "Gallop on"},
+                { text: "Nothing can be done by feeling so sorry for myself"},
+                { text: "Hero"},
+                { text: "On a plastic horse"},
+                { text: "Fighting like it's real"},
+                { text: "With a cardboard sword"},
+                { text: "I know"},
+                { text: "Successful or not, I am who I am"},
+                { text: "I am my biggest fan"},
+                { text: "I am my biggest fan"},
+                { text: "I am my enemy and my friend"},
+                { text: "Hero"},
+                { text: "Gonna prove my version of justice"},
+                { text: "Is more just than yours"},
+                { text: "Uno"},
+                { text: "Remaining on this stage, I am the only one"},
+                { text: "I am my biggest fan"},
+                { text: "I am my biggest fan"},
+                { text: "I am my enemy and my friend"}
+            ]
+        },
+        // Index 3
+        {
+            title: "Gone Angels",
+            artist: "Mili",
+            language: "English",
+            source: "Library Of Ruina",
+            audioSrc: "./audio/gone_angels.mp3",
+            lyrics: [
+                { text: "Ah-ah-ah-ah" },
+                { text: "La-la-la-la-la-la-la, ah" },
+                { text: "Look one by one" },
+                { text: "The pages remind me you'll always be villain" },
+                { text: "For you, angels have fallen" },
+                { text: "Now they're gone" },
+                { text: "See? Now they're gone, forever gone" },
+                { text: "From the hell that served as my one and only home" },
+                { text: "Though it may hurt today" },
+                { text: "Tomorrow, I'll be heading my way" },
+                { text: "I tried, I tried" },
+                { text: "What did we expect?" },
+                { text: "My dearest friend" },
+                { text: "Tell me when we shall make it end" },
+                { text: "So let me take your hand" },
+                { text: "Like one of those mad men" },
+                { text: "Tip tappity tappity tap" },
+                { text: "Dance our last dance, sing" },
+                { text: "Ta, ta-li-la, lu-li-la-tu" },
+                { text: "La, tu-la-li, la-lu-li-lu" },
+                { text: "Spinning vinyl opera (lascia ch'io pianga)" },
+                { text: "Longing for this moment (mia cruda sorte)" },
+                { text: "Brewing all this hatred (e che sospiri)" },
+                { text: "So I have a reason (la liberte)" },
+                { text: "Reason to see you dead" },
+                { text: "Don't you worry" },
+                { text: "I saved a spot for you in the recycle bin" },
+                { text: "Your neighbouring addresses point to the books you burned" },
+                { text: "Stop now one by one" },
+                { text: "Your desires convince me you've always been a human" },
+                { text: "For you, the shelves have fallen" },
+                { text: "Now they're gone" },
+                { text: "See? Now they're gone, forever gone" },
+                { text: "From the stage that allowed us our one and only dreams" },
+                { text: "What's more to say?" },
+                { text: "Pain always catches up to those who chooses to stay" },
+                { text: "Though it may hurt today" },
+                { text: "Tomorrow, I'll be heading my way" }
+            ]
+        },
+        // Index 4
+        {
+            title: "Sailor Song",
+            artist: "Gigi Perez",
+            language: "English",
+            source: "Independent",
+            audioSrc: "./audio/sailor_song.mp3",
+            lyrics: [
+                { text: "I saw her in the rightest way" },
+                { text: "Looking like Anne Hathaway" },
+                { text: "Laughing while she hit her pen" },
+                { text: "And coughed, and coughed" },
+                { text: "And then, she came up to my knees" },
+                { text: "Begging, \"Baby, would you please?\"" },
+                { text: "Do the things you said you'd do to me, to me?\"" },
+                { text: "Oh, won't you kiss me on the mouth and love me like a sailor?" },
+                { text: "And when you get a taste, can you tell me what's my flavor?" },
+                { text: "I don't believe in God, but I believe that you're my savior" },
+                { text: "My mom says that she's worried, but I'm covered in His favor" },
+                { text: "And when we're getting dirty, I forget all that is wrong" },
+                { text: "I sleep so I can see you 'cause I hate to wait so long" },
+                { text: "I sleep so I can see you and I hate to wait so long" },
+                { text: "She took my fingers to her mouth" },
+                { text: "The kind of thing that makes you proud" },
+                { text: "That nothing else had ever" },
+                { text: "Worked out, worked out" },
+                { text: "And maybe I tried other things" },
+                { text: "But nothing can capture the sting" },
+                { text: "Of the venom she's gonna spit out right now" },
+                { text: "Oh, won't you kiss me on the mouth and love me like a sailor?" },
+                { text: "When you get a taste, can you tell me what's my flavor?" },
+                { text: "I don't believe in God, but I believe that you're my savior" },
+                { text: "I know that you've been worried, but you're dripping in my favor" },
+                { text: "And when we're getting dirty, I forget all that is wrong" },
+                { text: "I sleep so I can see you 'cause I hate to wait so long" },
+                { text: "I sleep so that I can see you and I hate to wait so long" },
+                { text: "And we can run away to the walls inside your house" },
+                { text: "I can be the cat, baby, you can be the mouse" },
+                { text: "And we can laugh off things that we know nothing about" },
+                { text: "We can go forever until you wanna sit it out" }
+            ]
+        },
+        // Index 5
+        {
+            title: "Harvey",
+            artist: "Alex G",
+            language: "English",
+            source: "Independent",
+            audioSrc: "./audio/harvey.mp3",
+            lyrics: [
+                { text: "Success for my buddies, success for my friends" },
+                { text: "Success is the only thing I understand" },
+                { text: "Head back home to the place I grew up" },
+                { text: "Give my medals to the ones that I love" },
+                { text: "I'll chase Harvey through the door in the wall" },
+                { text: "He says, \"Never catch me, never miss me at all\"" },
+                { text: "Drool comes down from the corner of his mouth" },
+                { text: "I say, \"I love you Harvey, you cut it out\"" },
+                { text: "I love winning baby I want it all" },
+                { text: "I wanna prove that I got the balls" },
+                { text: "Harvey keeps on playing with his food" },
+                { text: "He doesn't understand what big boys do" },
+                { text: "He wakes up in the middle of the night" },
+                { text: "I run in and turn on the light" },
+                { text: "Run my hands through his short black hair" },
+                { text: "I love you Harvey, I don't care" }
+            ]
+        },
+        // Index 6
+        {
+            title: "Mirrors Demo",
+            artist: "Overtonight",
+            language: "English",
+            source: "Independent",
+            audioSrc: "./audio/mirrors_demo.mp3",
+            lyrics: [
+                { text: "Take down all the mirrors in my house, I hate my nose, eyes and my mouth" },
+                { text: "I hate the jokes I laugh about, I hate the hoes I'm sad about" },
+                { text: "She calls up my phone, ringing, ringing, ringing, ringing" },
+                { text: "Baby, just leave me alone" },
+                { text: "She saw all my flaws" },
+                { text: "Baby, won't you tell me what the fuck I'm doing wrong?" },
+                { text: "Ooh, I hate the feeling of my doubts, so I wanna die on top of my couch" },
+                { text: "Oh well, oh well, oh well" },
+                { text: "What do you want from me?" },
+                { text: "I'm never ever good for anything" },
+                { text: "Why do you talk to me?" },
+                { text: "I'm never ever buying a wedding ring" },
+                { text: "Ooh, I have a question" },
+                { text: "I'm like, \"Ooh, I have a question\"" },
+                { text: "Ooh, I have a question" },
+                { text: "I'm like, \"Ooh I have a question for you, baby" },
+                { text: "How do I really even matter to you" },
+                { text: "When you was outside laughing with another dude?\"" },
+                { text: "Oh, oh, oh" },
+                { text: "You make me hate my face so much, oh" },
+                { text: "When will I ever feel that (oh shit, a ghost)" },
+                { text: "Take down all the mirrors in my house, I hate my nose, eyes and my mouth" },
+                { text: "I hate the jokes I laugh about, I hate the hoes I'm sad about" },
+                { text: "She calls up my phone, ringing, ringing, ringing, ringing" },
+                { text: "Baby, just leave me alone" },
+                { text: "She saw all my flaws" },
+                { text: "Baby, won't you tell me what the fuck I'm doing wrong?" },
+                { text: "Ooh, I hate the feeling of my doubts, so I wanna die on top of my couch" },
+                { text: "Oh well, oh well, oh well" },
+                { text: "What do you want from me?" },
+                { text: "I'm never ever good for anything" },
+                { text: "Why do you talk to me?" },
+                { text: "I'm never ever buying a wedding ring" },
+                { text: "Take down all the mirrors in my house, I hate my nose, eyes and my mouth" },
+                { text: "I hate the jokes I laugh about, I hate the hoes I'm sad about" },
+                { text: "She calls up my phone, ringing, ringing, ringing, ringing" },
+                { text: "Baby, just leave me alone" },
+                { text: "She saw all my flaws" },
+                { text: "Baby, won't you tell me what the fuck I'm doing wrong?" }
+            ]
+        },
+        // Index 7
+        {
+            title: "Nope your too late i already died",
+            artist: "Wifiskeleton",
+            language: "English",
+            source: "Independent",
+            audioSrc: "./audio/nope_youre_too_late_i_already_died.mp3", 
+            lyrics: [
+                { text: "I'm not tryna ruin your fun" },
+                { text: "You're just a little bit late, I guess you're already done" },
+                { text: "There's this feeling I can't shake 'cause I'm too dumb" },
+                { text: "I'm never doing the right thing, so I'm so stuck" },
+                { text: "If you see me in America, I might say, \"Hi\"" },
+                { text: "But if you meet me out in Europe, I'm a talkative guy" },
+                { text: "Maybe we'll talk over scones around lunch some time" },
+                { text: "And I've never been to France, so it might be nice" },
+                { text: "But I can't take this paparazzi, jeez" },
+                { text: "It's like the camera's always out and always starin' at me" },
+                { text: "And if I say the wrong thing, they'll cut my tongue 'til it bleeds" },
+                { text: "Always whippin' out their pitchforks when you try to speak" },
+                { text: "(But that couldn't be me)" },
+                { text: "Next day I'm walkin' the road" },
+                { text: "Kickin' rocks, it's my fault" },
+                { text: "My life's the worst story told" },
+                { text: "I'll be this way 'til I'm old" },
+                { text: "I rip a page out the book" },
+                { text: "I'm just so misunderstood" },
+                { text: "I always think about her" },
+                { text: "And when my life felt good" },
+                { text: "I smoked a cig' on the porch" },
+                { text: "It doesn't help me at all" },
+                { text: "I wonder, \"What's it all for?" },
+                { text: "Is this the girl I adored?\"" },
+                { text: "And I know I can't afford" },
+                { text: "Watchin' her walk out the door" },
+                { text: "So I keep it to myself" },
+                { text: "And keep my feet on the floor" }
+            ]
+        }
+    ];
+
+    let currentSongIndex = 2; // Hero cuz LCB gang forever
+    let currentLineIndex = 0; 
+    let hasPlayedOnce = false; // New flag to track first play
+
+    const songTitleEl = document.getElementById('song-title');
+    const metadataEl = document.getElementById('metadata');
+    const lyricsWrapper = document.getElementById('lyrics-wrapper');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const songSelector = document.getElementById('song-selector');
+    const audioEl = document.getElementById('background-audio');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const initialOverlay = document.getElementById('initial-overlay'); // Get the new overlay
+
+    // --- Core Functions ---
+
+    function updatePlayPauseButton() {
+        if (audioEl.paused) {
+            playPauseBtn.textContent = 'PLAY (P)';
+        } else {
+            playPauseBtn.textContent = 'PAUSE (P)';
+            // If successfully played, ensure the overlay is hidden
+            if (!hasPlayedOnce) {
+                hasPlayedOnce = true;
+                initialOverlay.classList.add('hidden');
+            }
+        }
+    }
+
+    function togglePlayPause() {
+        if (audioEl.paused) {
+            audioEl.play().then(() => {
+                // If play succeeds, hide the overlay permanently
+                if (!hasPlayedOnce) {
+                    hasPlayedOnce = true;
+                    initialOverlay.classList.add('hidden');
+                }
+            }).catch(error => {
+                console.error("Autoplay prevented:", error);
+                // Keep the overlay visible if play is blocked
+                initialOverlay.classList.remove('hidden');
+            });
+        } else {
+            audioEl.pause();
+        }
+        updatePlayPauseButton();
+    }
+    
+    function restartSong() {
+        audioEl.pause();
+        audioEl.currentTime = 0;
+        
+        currentLineIndex = 0;
+        updateLyricDisplay();
+        updatePlayPauseButton();
+    }
+
+    function loadSong(index) {
+        currentSongIndex = parseInt(index);
+        const song = songs[currentSongIndex];
+        
+        // 1. Update Metadata
+        songTitleEl.textContent = song.title;
+        let metaHtml = `By **${song.artist}** (${song.source})`;
+        if (song.sinners) {
+            const cantoInfo = song.sinners.map(sinner => SINNER_CANTO_MAP[sinner] || sinner).join(', ');
+            metaHtml += `<br>Sinner: **${cantoInfo}**`;
+        }
+        metadataEl.innerHTML = metaHtml;
+
+        // 2. Load Audio
+        audioEl.src = song.audioSrc;
+        audioEl.load();
+        audioEl.pause();
+        
+        // 3. Render Lyrics
+        renderLyrics(song.lyrics);
+        
+        // 4. Reset to the first line and controls
+        currentLineIndex = 0;
+        updateLyricDisplay();
+        updateControlStates();
+
+        // 5. Always show the overlay when a new song is loaded until play is clicked again
+        if (!hasPlayedOnce) {
+            initialOverlay.classList.remove('hidden');
+        }
+        updatePlayPauseButton();
+    }
+
+    function renderLyrics(lyrics) {
+        lyricsWrapper.innerHTML = '';
+        if (lyrics && lyrics.length > 0) {
+            lyrics.forEach((line, index) => {
+                const lineEl = document.createElement('p');
+                lineEl.className = 'lyric-line';
+                lineEl.id = `line-${index}`;
+                lineEl.textContent = line.text || ' ';
+                lyricsWrapper.appendChild(lineEl);
+            });
+        } else {
+             lyricsWrapper.innerHTML = '<p class="lyric-line active">No lyrics available for this song. Please add them to the script.</p>';
+        }
+    }
+
+    function updateLyricDisplay() {
+        const lines = document.querySelectorAll('.lyric-line');
+        lines.forEach((line, index) => {
+            line.classList.remove('active', 'past');
+
+            if (index === currentLineIndex) {
+                line.classList.add('active');
+                // Scroll the active line into view (centered)
+                line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (index < currentLineIndex) {
+                line.classList.add('past');
+            }
+        });
+        updateControlStates();
+    }
+
+    function updateControlStates() {
+        const totalLines = songs[currentSongIndex].lyrics.length;
+        prevBtn.disabled = currentLineIndex <= 0;
+        nextBtn.disabled = currentLineIndex >= totalLines - 1;
+    }
+
+    function nextLyric() {
+        const totalLines = songs[currentSongIndex].lyrics.length;
+        if (currentLineIndex < totalLines - 1) {
+            currentLineIndex++;
+            if (audioEl.paused) {
+                 // Try to jump forward 2 seconds if paused, to help sync
+                 audioEl.currentTime = Math.min(audioEl.duration, audioEl.currentTime + 2.0);
+            }
+            updateLyricDisplay();
+        }
+    }
+
+    function prevLyric() {
+        if (currentLineIndex > 0) {
+            currentLineIndex--;
+            if (audioEl.paused) {
+                // Try to jump backward 2 seconds if paused, to help sync
+                audioEl.currentTime = Math.max(0, audioEl.currentTime - 2.0);
+            }
+            updateLyricDisplay();
+        }
+    }
+
+    function toggleFullscreen() {
+        const container = document.getElementById('main-container');
+        if (!document.fullscreenElement) {
+            container.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    // --- Initialization ---
+
+    function initializeSelector() {
+        songs.forEach((song, index) => {
+            const option = document.createElement('option');
+            const label = (song.source === "Limbus Company" && song.sinners && song.sinners.length > 0) 
+                        ? `[LCB] ${song.title} (${song.sinners.join(', ')})` 
+                        : `${song.title} (${song.artist})`;
+            option.value = index;
+            option.textContent = label;
+            songSelector.appendChild(option);
+        });
+        songSelector.value = currentSongIndex;
+    }
+
+    // --- Keyboard Event Handler ---
+
+    document.addEventListener('keydown', (event) => {
+        // Prevent key events from triggering while user is typing in form elements (e.g., if we added a search bar later)
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        switch (event.key.toUpperCase()) {
+            case 'ARROWLEFT':
+            case 'Q':
+                event.preventDefault();
+                prevLyric();
+                break;
+            case 'ARROWRIGHT':
+            case 'E':
+            case ' ':
+                event.preventDefault();
+                nextLyric();
+                break;
+            case 'P':
+                event.preventDefault();
+                togglePlayPause();
+                break;
+            case 'F':
+                event.preventDefault();
+                toggleFullscreen();
+                break;
+            case 'R':
+                event.preventDefault();
+                restartSong();
+                break;
+        }
+    });
+
+    // Add event listeners for audio state changes (to keep button label updated)
+    audioEl.addEventListener('play', updatePlayPauseButton);
+    audioEl.addEventListener('pause', updatePlayPauseButton);
+
+
+    // --- Execute on Load ---
+
+    initializeSelector();
+    loadSong(currentSongIndex);
+</script>
+</body>
+</html>
