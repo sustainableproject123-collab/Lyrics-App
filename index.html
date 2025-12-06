@@ -177,22 +177,21 @@
             body { 
                 padding: 0; 
                 align-items: flex-start;
-                min-height: auto; /* Let content dictate height */
+                min-height: auto;
             }
             .container { 
                 border-radius: 0; 
                 padding: 15px;
-                min-height: auto; /* Allow the content to define the height */
+                min-height: auto;
                 border: none;
                 box-shadow: none;
                 padding-bottom: 20px; 
-                /* Enable scroll on the entire page if content overflows */
                 overflow-y: auto; 
             } 
             h1 { font-size: 1.8rem; }
             #lyric-display { 
                 min-height: 250px; 
-                height: 50vh; /* Set a fixed height for scrolling */
+                height: 50vh;
             }
             .lyric-line.active { font-size: 1.8rem; }
             .lyric-line { font-size: 1.2rem; }
@@ -202,7 +201,6 @@
                 gap: 10px; 
                 margin-top: 20px; 
                 width: 100%;
-                /* Remove sticky positioning to allow the page to scroll normally */
                 position: static;
                 bottom: auto;
                 background-color: transparent; 
@@ -229,6 +227,8 @@
         
         <p class="instructions">
             ⬅ / Q = **Prev** · ➡️ / E / **SPACE** = **Next** · F = **Fullscreen** · P = **Play/Pause** · **R** = **Restart**
+            <br>
+            **Click Left/Right half of lyrics area to skip lines!**
         </p>
     </div>
 
@@ -260,8 +260,24 @@
     </div>
 </div>
 
-
 <script>
+    /* --- GLOBAL STATE & ELEMENTS --- */
+    const audio = document.getElementById('background-audio');
+    const songSelector = document.getElementById('song-selector');
+    const lyricDisplay = document.getElementById('lyric-display');
+    const lyricsWrapper = document.getElementById('lyrics-wrapper');
+    const songTitleEl = document.getElementById('song-title');
+    const metadataEl = document.getElementById('metadata');
+    const overlay = document.getElementById('initial-overlay');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+
+    let currentSongIndex = 2; // Start on 'Hero' (Index 2)
+    let currentLyricIndex = 0;
+    let isPlaying = false;
+    let isUserInteractionRequired = true;
+
+    /* --- DATA (Limbus Company / Song List) --- */
+
     const SINNER_CANTO_MAP = {
         "Gregor": "Canto I: The Outcast (Gregor)",
         "Rodion": "Canto II: The Unloving (Rodion/Rodya)",
@@ -270,17 +286,13 @@
         "Ishmael": "Canto V: The Evil Defining (Ishmael)",
         "Heathcliff": "Canto VI: The Heartbreaking (Heathcliff)",
         "Don Quixote": "Canto VII: The Dream Ending (Don Quixote)",
-        "Hong Lu": "Canto VIII: The Surrendered Witnessing (Hong Lu)" 
+        "Hong Lu": "Canto VIII: The Surrendered Witnessing (Hong Lu)"
     };
 
     const songs = [
         // Index 0
         {
-            title: "Young Girl A",
-            artist: "Siinamota (feat. GUMI)",
-            language: "Japanese (Romaji)",
-            source: "Vocaloid",
-            audioSrc: "./audio/young_girl_a.mp3",
+            title: "Young Girl A", artist: "Siinamota (feat. GUMI)", language: "Japanese (Romaji)", source: "Vocaloid", audioSrc: "./audio/young_girl_a.mp3",
             lyrics: [
                 { text: "Boku no inochi tsuttatte dare no inochi tsuttatte"},
                 { text: "Tokidoki doki kouhei ni sabakareru mon nan desho"},
@@ -330,11 +342,7 @@
         },
         // Index 1
         {
-            title: "Mesmerizer",
-            artist: "Satsuki (feat. Hatsune Miku & Kasane Teto)",
-            language: "Japanese (Romaji)",
-            source: "Vocaloid",
-            audioSrc: "./audio/mesmerizer.mp3",
+            title: "Mesmerizer", artist: "Satsuki (feat. Hatsune Miku & Kasane Teto)", language: "Japanese (Romaji)", source: "Vocaloid", audioSrc: "./audio/mesmerizer.mp3",
             lyrics: [
                 { text: "Jissai no kanjou wa no think"},
                 { text: "Kizukanai furi"},
@@ -399,12 +407,7 @@
         },
         // Index 2 (Starting Song: Hero - Don Quixote)
         {
-            title: "Hero",
-            artist: "Mili",
-            language: "English",
-            source: "Limbus Company",
-            sinners: ["Don Quixote"],
-            audioSrc: "./audio/hero.mp3",
+            title: "Hero", artist: "Mili", language: "English", source: "Limbus Company", sinners: ["Don Quixote"], audioSrc: "./audio/hero.mp3",
             lyrics: [
                 { text: "One, two"},
                 { text: "One, two, three, four"},
@@ -483,11 +486,7 @@
         },
         // Index 3
         {
-            title: "Gone Angels",
-            artist: "Mili",
-            language: "English",
-            source: "Library Of Ruina",
-            audioSrc: "./audio/gone_angels.mp3",
+            title: "Gone Angels", artist: "Mili", language: "English", source: "Library Of Ruina", audioSrc: "./audio/gone_angels.mp3",
             lyrics: [
                 { text: "Ah-ah-ah-ah" },
                 { text: "La-la-la-la-la-la-la, ah" },
@@ -531,11 +530,7 @@
         },
         // Index 4
         {
-            title: "Sailor Song",
-            artist: "Gigi Perez",
-            language: "English",
-            source: "Independent",
-            audioSrc: "./audio/sailor_song.mp3",
+            title: "Sailor Song", artist: "Gigi Perez", language: "English", source: "Independent", audioSrc: "./audio/sailor_song.mp3",
             lyrics: [
                 { text: "I saw her in the rightest way" },
                 { text: "Looking like Anne Hathaway" },
@@ -573,11 +568,7 @@
         },
         // Index 5
         {
-            title: "Harvey",
-            artist: "Alex G",
-            language: "English",
-            source: "Independent",
-            audioSrc: "./audio/harvey.mp3",
+            title: "Harvey", artist: "Alex G", language: "English", source: "Independent", audioSrc: "./audio/harvey.mp3",
             lyrics: [
                 { text: "Success for my buddies, success for my friends" },
                 { text: "Success is the only thing I understand" },
@@ -599,11 +590,7 @@
         },
         // Index 6
         {
-            title: "Mirrors Demo",
-            artist: "Overtonight",
-            language: "English",
-            source: "Independent",
-            audioSrc: "./audio/mirrors_demo.mp3",
+            title: "Mirrors Demo", artist: "Overtonight", language: "English", source: "Independent", audioSrc: "./audio/mirrors_demo.mp3",
             lyrics: [
                 { text: "Take down all the mirrors in my house, I hate my nose, eyes and my mouth" },
                 { text: "I hate the jokes I laugh about, I hate the hoes I'm sad about" },
@@ -648,11 +635,7 @@
         },
         // Index 7
         {
-            title: "Nope your too late i already died",
-            artist: "Wifiskeleton",
-            language: "English",
-            source: "Independent",
-            audioSrc: "./audio/nope_youre_too_late_i_already_died.mp3", 
+            title: "Nope your too late i already died", artist: "Wifiskeleton", language: "English", source: "Independent", audioSrc: "./audio/nope_youre_too_late_i_already_died.mp3", 
             lyrics: [
                 { text: "I'm not tryna ruin your fun" },
                 { text: "You're just a little bit late, I guess you're already done" },
@@ -664,176 +647,144 @@
                 { text: "And I've never been to France, so it might be nice" },
                 { text: "But I can't take this paparazzi, jeez" },
                 { text: "It's like the camera's always out and always starin' at me" },
-                { text: "And if I say the wrong thing, they'll cut my tongue 'til it bleeds" },
-                { text: "Always whippin' out their pitchforks when you try to speak" },
-                { text: "(But that couldn't be me)" },
-                { text: "Next day I'm walkin' the road" },
-                { text: "Kickin' rocks, it's my fault" },
-                { text: "My life's the worst story told" },
-                { text: "I'll be this way 'til I'm old" },
-                { text: "I rip a page out the book" },
-                { text: "I'm just so misunderstood" },
-                { text: "I always think about her" },
-                { text: "And when my life felt good" },
-                { text: "I smoked a cig' on the porch" },
-                { text: "It doesn't help me at all" },
-                { text: "I wonder, \"What's it all for?" },
-                { text: "Is this the girl I adored?\"" },
-                { text: "And I know I can't afford" },
-                { text: "Watchin' her walk out the door" },
-                { text: "So I keep it to myself" },
-                { text: "And keep my feet on the floor" }
             ]
-        }
+        },
     ];
 
-    let currentSongIndex = 2; // Hero cuz LCB gang forever
-    let currentLineIndex = 0; 
-    let hasPlayedOnce = false; // New flag to track first play
+    /* --- CORE FUNCTIONS --- */
 
-    const songTitleEl = document.getElementById('song-title');
-    const metadataEl = document.getElementById('metadata');
-    const lyricsWrapper = document.getElementById('lyrics-wrapper');
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    const songSelector = document.getElementById('song-selector');
-    const audioEl = document.getElementById('background-audio');
-    const playPauseBtn = document.getElementById('play-pause-btn');
-    const initialOverlay = document.getElementById('initial-overlay'); // Get the new overlay
-
-    // --- Core Functions ---
-
-    function updatePlayPauseButton() {
-        if (audioEl.paused) {
-            playPauseBtn.textContent = 'PLAY (P)';
-        } else {
-            playPauseBtn.textContent = 'PAUSE (P)';
-            // If successfully played, ensure the overlay is hidden
-            if (!hasPlayedOnce) {
-                hasPlayedOnce = true;
-                initialOverlay.classList.add('hidden');
+    function populateSongSelector() {
+        songs.forEach((song, index) => {
+            const option = document.createElement('option');
+            let displayTitle = song.title;
+            if (song.sinners && song.sinners.length > 0) {
+                const canto = SINNER_CANTO_MAP[song.sinners[0]] || "";
+                displayTitle = `${song.title} (${canto.split(': ')[0]})`;
             }
-        }
+            
+            option.value = index;
+            option.textContent = displayTitle;
+            songSelector.appendChild(option);
+        });
+        songSelector.value = currentSongIndex;
     }
 
-    function togglePlayPause() {
-        if (audioEl.paused) {
-            audioEl.play().then(() => {
-                // If play succeeds, hide the overlay permanently
-                if (!hasPlayedOnce) {
-                    hasPlayedOnce = true;
-                    initialOverlay.classList.add('hidden');
-                }
-            }).catch(error => {
-                console.error("Autoplay prevented:", error);
-                // Keep the overlay visible if play is blocked
-                initialOverlay.classList.remove('hidden');
-            });
-        } else {
-            audioEl.pause();
-        }
-        updatePlayPauseButton();
-    }
-    
-    function restartSong() {
-        audioEl.pause();
-        audioEl.currentTime = 0;
-        
-        currentLineIndex = 0;
-        updateLyricDisplay();
-        updatePlayPauseButton();
-    }
+    function loadSong(indexStr) {
+        const newIndex = parseInt(indexStr);
+        if (newIndex === currentSongIndex) return;
 
-    function loadSong(index) {
-        currentSongIndex = parseInt(index);
+        currentSongIndex = newIndex;
         const song = songs[currentSongIndex];
-        
-        // 1. Update Metadata
+
+        audio.pause();
+        audio.currentTime = 0;
+        isPlaying = false;
+        isUserInteractionRequired = true;
+        playPauseBtn.textContent = "PLAY (P)";
+        overlay.classList.remove('hidden');
+
+        audio.src = song.audioSrc;
+        audio.load();
+
         songTitleEl.textContent = song.title;
-        let metaHtml = `By **${song.artist}** (${song.source})`;
-        if (song.sinners) {
-            const cantoInfo = song.sinners.map(sinner => SINNER_CANTO_MAP[sinner] || sinner).join(', ');
-            metaHtml += `<br>Sinner: **${cantoInfo}**`;
-        }
-        metadataEl.innerHTML = metaHtml;
-
-        // 2. Load Audio
-        audioEl.src = song.audioSrc;
-        audioEl.load();
-        audioEl.pause();
         
-        // 3. Render Lyrics
-        renderLyrics(song.lyrics);
-        
-        // 4. Reset to the first line and controls
-        currentLineIndex = 0;
-        updateLyricDisplay();
-        updateControlStates();
-
-        // 5. Always show the overlay when a new song is loaded until play is clicked again
-        if (!hasPlayedOnce) {
-            initialOverlay.classList.remove('hidden');
+        let metadataText = `Artist: **${song.artist}** | Source: **${song.source}** | Language: **${song.language}**`;
+        if (song.sinners && song.sinners.length > 0) {
+            const sinnerName = song.sinners[0];
+            metadataText += ` | Canto: **${SINNER_CANTO_MAP[sinnerName] || sinnerName}**`;
         }
-        updatePlayPauseButton();
-    }
+        metadataEl.innerHTML = metadataText;
 
-    function renderLyrics(lyrics) {
         lyricsWrapper.innerHTML = '';
-        if (lyrics && lyrics.length > 0) {
-            lyrics.forEach((line, index) => {
-                const lineEl = document.createElement('p');
-                lineEl.className = 'lyric-line';
-                lineEl.id = `line-${index}`;
-                lineEl.textContent = line.text || ' ';
-                lyricsWrapper.appendChild(lineEl);
-            });
-        } else {
-             lyricsWrapper.innerHTML = '<p class="lyric-line active">No lyrics available for this song. Please add them to the script.</p>';
-        }
+        song.lyrics.forEach((line, index) => {
+            const p = document.createElement('p');
+            p.className = 'lyric-line';
+            p.setAttribute('data-index', index);
+            p.textContent = line.text;
+            lyricsWrapper.appendChild(p);
+        });
+
+        currentLyricIndex = 0;
+        updateLyricDisplay();
     }
 
     function updateLyricDisplay() {
-        const lines = document.querySelectorAll('.lyric-line');
+        const lines = lyricsWrapper.querySelectorAll('.lyric-line');
+        
         lines.forEach((line, index) => {
             line.classList.remove('active', 'past');
-
-            if (index === currentLineIndex) {
+            if (index === currentLyricIndex) {
                 line.classList.add('active');
-                // Scroll the active line into view (centered)
-                line.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else if (index < currentLineIndex) {
+            } else if (index < currentLyricIndex) {
                 line.classList.add('past');
             }
         });
-        updateControlStates();
-    }
 
-    function updateControlStates() {
-        const totalLines = songs[currentSongIndex].lyrics.length;
-        prevBtn.disabled = currentLineIndex <= 0;
-        nextBtn.disabled = currentLineIndex >= totalLines - 1;
+        const activeLine = lines[currentLyricIndex];
+        if (activeLine) {
+            const displayHeight = lyricDisplay.clientHeight;
+            const lineOffset = activeLine.offsetTop;
+            const lineHeight = activeLine.clientHeight;
+
+            const scrollTarget = lineOffset - (displayHeight / 2) + (lineHeight / 2);
+
+            lyricDisplay.scrollTo({
+                top: scrollTarget,
+                behavior: 'smooth'
+            });
+        }
     }
 
     function nextLyric() {
-        const totalLines = songs[currentSongIndex].lyrics.length;
-        if (currentLineIndex < totalLines - 1) {
-            currentLineIndex++;
-            if (audioEl.paused) {
-                 // Try to jump forward 2 seconds if paused, to help sync
-                 audioEl.currentTime = Math.min(audioEl.duration, audioEl.currentTime + 2.0);
-            }
+        if (currentLyricIndex < songs[currentSongIndex].lyrics.length - 1) {
+            currentLyricIndex++;
             updateLyricDisplay();
+        } else {
+            restartSong();
         }
     }
 
     function prevLyric() {
-        if (currentLineIndex > 0) {
-            currentLineIndex--;
-            if (audioEl.paused) {
-                // Try to jump backward 2 seconds if paused, to help sync
-                audioEl.currentTime = Math.max(0, audioEl.currentTime - 2.0);
-            }
+        if (currentLyricIndex > 0) {
+            currentLyricIndex--;
             updateLyricDisplay();
+        }
+    }
+
+    function togglePlayPause() {
+        if (isPlaying) {
+            audio.pause();
+            isPlaying = false;
+            playPauseBtn.textContent = "PLAY (P)";
+        } else {
+            audio.play()
+                .then(() => {
+                    isPlaying = true;
+                    playPauseBtn.textContent = "PAUSE (P)";
+                    if (isUserInteractionRequired) {
+                        overlay.classList.add('hidden');
+                        isUserInteractionRequired = false;
+                    }
+                })
+                .catch(error => {
+                    console.error("Audio playback failed, likely due to autoplay policy.", error);
+                    isPlaying = false;
+                    isUserInteractionRequired = true;
+                    overlay.classList.remove('hidden');
+                    alert("Playback requires user action (like pressing Play/Pause or clicking the screen) to begin.");
+                });
+        }
+    }
+
+    function restartSong() {
+        audio.pause();
+        audio.currentTime = 0;
+        isPlaying = false;
+        playPauseBtn.textContent = "PLAY (P)";
+        currentLyricIndex = 0;
+        updateLyricDisplay();
+        if (isUserInteractionRequired) {
+            overlay.classList.remove('hidden');
         }
     }
 
@@ -841,72 +792,75 @@
         const container = document.getElementById('main-container');
         if (!document.fullscreenElement) {
             container.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
             });
         } else {
             document.exitFullscreen();
         }
     }
 
-    // --- Initialization ---
+    /* --- EVENT LISTENERS --- */
 
-    function initializeSelector() {
-        songs.forEach((song, index) => {
-            const option = document.createElement('option');
-            const label = (song.source === "Limbus Company" && song.sinners && song.sinners.length > 0) 
-                        ? `[LCB] ${song.title} (${song.sinners.join(', ')})` 
-                        : `${song.title} (${song.artist})`;
-            option.value = index;
-            option.textContent = label;
-            songSelector.appendChild(option);
-        });
-        songSelector.value = currentSongIndex;
-    }
-
-    // --- Keyboard Event Handler ---
-
-    document.addEventListener('keydown', (event) => {
-        // Prevent key events from triggering while user is typing in form elements (e.g., if we added a search bar later)
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
-            return;
+    document.addEventListener('keydown', (e) => {
+        if (e.key === ' ' && e.target === document.body) {
+            e.preventDefault();
         }
 
-        switch (event.key.toUpperCase()) {
-            case 'ARROWLEFT':
-            case 'Q':
-                event.preventDefault();
-                prevLyric();
-                break;
+        switch (e.key.toUpperCase()) {
             case 'ARROWRIGHT':
             case 'E':
             case ' ':
-                event.preventDefault();
                 nextLyric();
                 break;
+            case 'ARROWLEFT':
+            case 'Q':
+                prevLyric();
+                break;
             case 'P':
-                event.preventDefault();
                 togglePlayPause();
                 break;
-            case 'F':
-                event.preventDefault();
-                toggleFullscreen();
-                break;
             case 'R':
-                event.preventDefault();
                 restartSong();
+                break;
+            case 'F':
+                toggleFullscreen();
                 break;
         }
     });
 
-    // Add event listeners for audio state changes (to keep button label updated)
-    audioEl.addEventListener('play', updatePlayPauseButton);
-    audioEl.addEventListener('pause', updatePlayPauseButton);
+    lyricDisplay.addEventListener('click', (e) => {
+        const rect = lyricDisplay.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
 
+        if (!isUserInteractionRequired || isPlaying) {
+            if (clickX < rect.width / 2) {
+                prevLyric();
+            } else {
+                nextLyric();
+            }
+        } else {
+            togglePlayPause();
+        }
+    });
 
-    // --- Execute on Load ---
+    audio.addEventListener('play', () => {
+        isPlaying = true;
+        playPauseBtn.textContent = "PAUSE (P)";
+        overlay.classList.add('hidden');
+        isUserInteractionRequired = false;
+    });
 
-    initializeSelector();
-    loadSong(currentSongIndex);
+    audio.addEventListener('pause', () => {
+        isPlaying = false;
+        playPauseBtn.textContent = "PLAY (P)";
+    });
+
+    /* --- INITIALIZATION --- */
+
+    document.addEventListener('DOMContentLoaded', () => {
+        populateSongSelector();
+        loadSong(currentSongIndex);
+    });
 </script>
 </body>
 </html>
