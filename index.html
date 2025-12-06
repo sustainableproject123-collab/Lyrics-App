@@ -177,7 +177,13 @@
             background-repeat: no-repeat; background-position: right 10px center;
         }
 
-        .control-groups { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .control-groups { 
+            display: flex; 
+            justify-content: space-between; 
+            gap: 10px; 
+            margin-top: 20px; 
+            flex-wrap: wrap; 
+        }
         .main-button-group { display: flex; gap: 10px; flex-grow: 1; min-width: 50%; }
         .full-screen-group { flex-shrink: 0; display: flex; gap: 10px; }
         
@@ -209,22 +215,38 @@
         #restart-btn:hover { background-color: #dc2626; transform: translateY(-2px); }
 
 
-        /* --- Mobile Optimization --- */
+        /* --- Mobile Optimization (Adjusted for better visibility) --- */
         @media (max-width: 600px) {
-            body { padding: 0; }
+            body { 
+                padding: 0; 
+                align-items: flex-start; /* Ensure content starts at the top */
+            }
             .container { 
                 border-radius: 0; 
                 padding: 15px;
                 min-height: 100vh;
                 border: none;
                 box-shadow: none;
+                /* Add vertical space to prevent buttons from touching the very bottom */
+                padding-bottom: 20px; 
             } 
             h1 { font-size: 1.8rem; }
             #lyric-display { min-height: 250px; }
             .lyric-line.active { font-size: 1.8rem; }
             .lyric-line { font-size: 1.2rem; }
             
-            .control-groups { flex-direction: column; gap: 10px; }
+            .control-groups { 
+                flex-direction: column; 
+                gap: 10px; 
+                margin-top: 20px; 
+                width: 100%;
+                /* Make control group sticky to ensure buttons stay visible at the bottom */
+                position: sticky;
+                bottom: 0;
+                background-color: var(--color-terminal); 
+                padding-top: 10px;
+                z-index: 5;
+            }
             .main-button-group, .full-screen-group { flex-direction: row; gap: 10px; width: 100%; }
             .control-groups button { 
                 padding: 12px; 
