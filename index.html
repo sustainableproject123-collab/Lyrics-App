@@ -28,7 +28,6 @@
             margin: 0;
             padding: 20px;
             box-sizing: border-box;
-            overflow: hidden;
         }
 
         .container {
@@ -58,7 +57,7 @@
             border: 1px dashed #444; padding: 10px; border-radius: 4px;
         }
 
-        /* --- Lyric Display (Using scrollIntoView) --- */
+        /* --- Lyric Display --- */
         #lyric-display {
             position: relative; 
             overflow-y: auto;
@@ -73,9 +72,7 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        #lyric-display::-webkit-scrollbar {
-            display: none;
-        }
+        #lyric-display::-webkit-scrollbar { display: none; }
 
         #lyrics-wrapper { 
             width: 100%; 
@@ -90,18 +87,11 @@
             display: block; 
             padding: 10px 0;
             margin: 0;
-            
             opacity: 0.2; 
             transform: scale(0.95);
             font-size: 1.5rem;
             color: #333;
-
-            transition: 
-                opacity 0.4s ease-out, 
-                transform 0.4s ease-out, 
-                color 0.4s ease-out, 
-                font-size 0.4s ease-out;
-            
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out, color 0.4s ease-out, font-size 0.4s ease-out;
             scroll-snap-align: center; 
         }
         
@@ -121,50 +111,25 @@
             font-size: 1.2rem;
         }
         
-        /* --- Initial Play Overlay --- */
+        /* --- Initial Play Overlay (Same as before) --- */
         #initial-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(0, 0, 0, 0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            border-radius: 8px;
-            text-align: center;
-            flex-direction: column;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10; border-radius: 8px; text-align: center; flex-direction: column;
             transition: opacity 0.5s ease-out, visibility 0.5s;
         }
 
-        #initial-overlay.hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none; /* Allows clicks to pass through once hidden */
-        }
+        #initial-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
         
         #initial-overlay p {
-            font-size: 1.8rem;
-            color: var(--color-text);
-            text-shadow: 0 0 10px var(--color-text);
-            animation: blink 1.5s infinite alternate;
-            padding: 20px;
-            margin: 0;
+            font-size: 1.8rem; color: var(--color-text); text-shadow: 0 0 10px var(--color-text);
+            animation: blink 1.5s infinite alternate; padding: 20px; margin: 0;
         }
 
-        #initial-overlay .sub-text {
-            font-size: 1.2rem;
-            color: #aaa;
-            margin-top: 10px;
-            animation: none;
-        }
+        #initial-overlay .sub-text { font-size: 1.2rem; color: #aaa; margin-top: 10px; animation: none; }
 
-        @keyframes blink {
-            from { opacity: 1; }
-            to { opacity: 0.7; }
-        }
+        @keyframes blink { from { opacity: 1; } to { opacity: 0.7; } }
 
         /* --- Controls & Selector (Same as before) --- */
         .selector-group { margin-bottom: 15px; padding-top: 5px; border-top: 1px solid #333; }
@@ -200,38 +165,35 @@
         #fullscreen-btn { background-color: #4b5563; color: #ccc; border: 2px solid #374151; }
         #fullscreen-btn:hover { background-color: #374151; transform: translateY(-2px); }
         
-        #play-pause-btn { 
-            background-color: #f59e0b;
-            color: #111827; 
-            border: 2px solid #b45309; 
-        }
+        #play-pause-btn { background-color: #f59e0b; color: #111827; border: 2px solid #b45309; }
         #play-pause-btn:hover { background-color: #d97706; transform: translateY(-2px); }
         
-        #restart-btn { 
-            background-color: #ef4444; 
-            color: white; 
-            border: 2px solid #b91c1c; 
-        }
+        #restart-btn { background-color: #ef4444; color: white; border: 2px solid #b91c1c; }
         #restart-btn:hover { background-color: #dc2626; transform: translateY(-2px); }
 
 
-        /* --- Mobile Optimization (Adjusted for better visibility) --- */
+        /* --- MOBILE OPTIMIZATION (Simplified and Fixed) --- */
         @media (max-width: 600px) {
             body { 
                 padding: 0; 
-                align-items: flex-start; /* Ensure content starts at the top */
+                align-items: flex-start;
+                min-height: auto; /* Let content dictate height */
             }
             .container { 
                 border-radius: 0; 
                 padding: 15px;
-                min-height: 100vh;
+                min-height: auto; /* Allow the content to define the height */
                 border: none;
                 box-shadow: none;
-                /* Add vertical space to prevent buttons from touching the very bottom */
                 padding-bottom: 20px; 
+                /* Enable scroll on the entire page if content overflows */
+                overflow-y: auto; 
             } 
             h1 { font-size: 1.8rem; }
-            #lyric-display { min-height: 250px; }
+            #lyric-display { 
+                min-height: 250px; 
+                height: 50vh; /* Set a fixed height for scrolling */
+            }
             .lyric-line.active { font-size: 1.8rem; }
             .lyric-line { font-size: 1.2rem; }
             
@@ -240,12 +202,11 @@
                 gap: 10px; 
                 margin-top: 20px; 
                 width: 100%;
-                /* Make control group sticky to ensure buttons stay visible at the bottom */
-                position: sticky;
-                bottom: 0;
-                background-color: var(--color-terminal); 
-                padding-top: 10px;
-                z-index: 5;
+                /* Remove sticky positioning to allow the page to scroll normally */
+                position: static;
+                bottom: auto;
+                background-color: transparent; 
+                padding-top: 0;
             }
             .main-button-group, .full-screen-group { flex-direction: row; gap: 10px; width: 100%; }
             .control-groups button { 
@@ -257,8 +218,6 @@
     </style>
 </head>
 <body>
-
-
 <div class="container" id="main-container">
     <div>
         <h1 id="song-title"></h1>
